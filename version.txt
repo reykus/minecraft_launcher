@@ -1,0 +1,28 @@
+VSVersionInfo(
+  ffi=FixedFileInfo(
+    filevers=(1, 0, 0, 0),
+    prodvers=(1, 0, 0, 0),
+    mask=0x3f,
+    flags=0x0,
+    OS=0x40004,
+    fileType=0x1,
+    subtype=0x0,
+    date=(0, 0)
+    ),
+  kids=[
+    StringFileInfo(
+      [
+      StringTable(
+        u'040904B0', # 0409 = English (US), 04B0 = Unicode
+        [StringStruct(u'CompanyName', u'YourName'),
+        StringStruct(u'FileDescription', u'Modern Minecraft Launcher'),
+        StringStruct(u'FileVersion', u'1.0.0'),
+        StringStruct(u'InternalName', u'ModernMCLauncher'),
+        StringStruct(u'LegalCopyright', u'© 2024 YourName'),
+        StringStruct(u'OriginalFilename', u'ModernMCLauncher.exe'),
+        StringStruct(u'ProductName', u'Modern MC Launcher'),
+        StringStruct(u'ProductVersion', u'1.0.0')])
+      ]), 
+    VarFileInfo([VarStruct(u'Translation', [1033, 1200])]) # 1033 = English (US)
+  ]
+)

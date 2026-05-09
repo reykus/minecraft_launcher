@@ -1,4 +1,3 @@
-# ui/main_window.py
 import os
 import sys
 import subprocess
@@ -12,11 +11,11 @@ from PySide6.QtCore import Qt
 from ui.styles import DARK_STYLE
 from ui.instance_card import InstanceCard
 from ui.workers import InstallWorker
+from ui.add_instance_dialog import AddInstanceDialog
 
 from utils.settings import ConfigManager
 from core.instance_manager import InstanceManager
 from core.minecraft_runner import MinecraftRunner
-from core.java_manager import JavaManager
 
 class MainWindow(QMainWindow):
     def __init__(self):
@@ -24,14 +23,12 @@ class MainWindow(QMainWindow):
         self.setWindowTitle("Modern Minecraft Launcher")
         self.resize(1000, 650)
         
-        # Бекенд
         self.config = ConfigManager()
         self.instances = InstanceManager()
         self.runner = MinecraftRunner()
-        self.java_manager = JavaManager()
         
         self.current_instance = None
-        self.worker = None # Для відстеження потоку
+        self.worker = None
 
         self.init_ui()
         self.setStyleSheet(DARK_STYLE)
@@ -64,22 +61,19 @@ class MainWindow(QMainWindow):
         right_layout = QVBoxLayout(right_panel)
         right_layout.setContentsMargins(40, 30, 40, 30)
 
-        # Інформація
         self.instance_name_label = QLabel("Оберіть інстанс")
         self.instance_name_label.setStyleSheet("font-size: 32px; font-weight: bold; color: #cdd6f4;")
         
         self.instance_info_label = QLabel("Або створіть новий")
         self.instance_info_label.setStyleSheet("font-size: 16px; color: #a6adc8;")
 
-        # Прогрес завантаження
         self.progress_bar = QProgressBar()
         self.progress_bar.setValue(0)
-        self.progress_bar.setVisible(False) # Ховаємо, поки не завантажуємо
+        self.progress_bar.setVisible(False)
         
         self.status_label = QLabel("")
         self.status_label.setStyleSheet("font-size: 12px; color: #89b4fa; font-style: italic;")
 
-        # Кнопки керування
         buttons_layout = QHBoxLayout()
         
         self.play_button = QPushButton("▶ ГРАТИ")
@@ -93,11 +87,10 @@ class MainWindow(QMainWindow):
         self.delete_button.setObjectName("deleteButton")
         self.delete_button.clicked.connect(self.delete_instance)
 
-        buttons_layout.addWidget(self.play_button)
-        buttons_layout.addWidget(self.open_folder_btn)
-        buttons_layout.addWidget(self.delete_button)
+        buttons_layout.addWidget(self.play_button, 1)
+        buttons_layout.addWidget(self.open_folder_btn, 1)
+        buttons_layout.addWidget(self.delete_button, 1)
 
-        # Налаштування (Нік та RAM)
         settings_layout = QHBoxLayout()
         
         nick_layout = QVBoxLayout()
@@ -126,7 +119,6 @@ class MainWindow(QMainWindow):
         settings_layout.addLayout(nick_layout, 1)
         settings_layout.addLayout(ram_layout, 2)
 
-        # Збираємо праву панель
         right_layout.addWidget(self.instance_name_label)
         right_layout.addWidget(self.instance_info_label)
         right_layout.addStretch()
@@ -136,16 +128,24 @@ class MainWindow(QMainWindow):
         right_layout.addStretch()
         right_layout.addLayout(settings_layout)
 
-        # Головне збирання
         main_layout.addWidget(left_panel)
         main_layout.addWidget(right_panel)
 
     def load_instances_to_list(self):
         self.instance_list.clear()
         instances = self.instances.get_all_instances()
+
         for inst in instances:
+            # Визначаємо ID версії, яку треба перевірити
+            # Якщо launch_version_id існує (збережено після завантаження), беремо його.
+            # Інакше беремо стандартну версію (наприклад, "1.21.1").
+            version_to_check = inst.get("launch_version_id") or inst["version"]
+            
+            # Перевіряємо наявність файлів
+            is_installed = MinecraftRunner.is_version_installed(version_to_check)
+
             item = QListWidgetItem(self.instance_list)
-            card = InstanceCard(inst, self.instance_list)
+            card = InstanceCard(inst, is_installed, self.instance_list)
             item.setSizeHint(card.sizeHint())
             item.setData(Qt.UserRole, inst)
             self.instance_list.setItemWidget(item, card)
@@ -186,8 +186,6 @@ class MainWindow(QMainWindow):
             self.instance_info_label.setText("")
 
     def add_instance_dialog(self):
-        from ui.add_instance_dialog import AddInstanceDialog
-        
         dialog = AddInstanceDialog(self)
         if dialog.exec() == QDialog.Accepted and dialog.selected_data:
             data = dialog.selected_data
@@ -198,21 +196,15 @@ class MainWindow(QMainWindow):
                     loader_type=data["loader_type"]
                 )
                 self.load_instances_to_list()
-                
-                # Автоматично вибираємо щойно створений інстанс
                 for i in range(self.instance_list.count()):
                     item = self.instance_list.item(i)
                     if item.data(Qt.UserRole)["name"] == data["name"]:
                         self.instance_list.setCurrentItem(item)
                         break
-                        
             except Exception as e:
                 QMessageBox.critical(self, "Помилка", str(e))
 
-    # === БАГАТОПОТОЧНІСТЬ ===
-    
     def set_ui_busy(self, busy):
-        """Блокуємо/розблокуємо кнопки під час завантаження"""
         self.play_button.setEnabled(not busy)
         self.add_instance_btn.setEnabled(not busy)
         self.delete_button.setEnabled(not busy)
@@ -227,57 +219,39 @@ class MainWindow(QMainWindow):
         
         nickname = self.nick_input.text()
         ram = self.ram_slider.value()
-        mc_version = self.current_instance["version"]
 
-        # 1. Визначаємо та завантажуємо Java (це швидко, якщо вже є)
         self.set_ui_busy(True)
-        self.status_label.setText("Пошук відповідної версії Java...")
-        
-        required_java = self.java_manager.get_required_java_version(mc_version)
-        java_path = self.java_manager.get_java_executable(required_java)
+        self.status_label.setText("Підготовка до встановлення/запуску...")
 
-        if not java_path:
-            QMessageBox.critical(self, "Помилка", "Не вдалося знайти або завантажити Java!")
-            self.set_ui_busy(False)
-            return
-
-        # 2. Запускаємо фоновий потік для перевірки/завантаження файлів гри
-        self.worker = InstallWorker(self.current_instance, java_path)
+        # Запускаємо потік, який САМ завантажить Java та Гру
+        self.worker = InstallWorker(self.current_instance)
         self.worker.progress_signal.connect(self.progress_bar.setValue)
         self.worker.status_signal.connect(self.status_label.setText)
         self.worker.finished_signal.connect(self.on_install_finished)
         
-        # Зберігаємо дані для запуску
         self._launch_data = {
-            "instance": self.current_instance,
             "nickname": nickname,
-            "ram": ram,
-            "java_path": java_path
+            "ram": ram
         }
         
         self.worker.start()
 
-    def on_install_finished(self, success, message):
+    def on_install_finished(self, success, message, updated_instance_data):
         self.set_ui_busy(False)
         self.status_label.setText(message)
 
         if success:
-            # Перезавантажуємо дані інстансу (щоб оновився launch_version_id)
-            updated_instances = self.instances.get_all_instances()
-            for inst in updated_instances:
-                if inst["name"] == self._launch_data["instance"]["name"]:
-                    self._launch_data["instance"] = inst
-                    break
+            # Оновлюємо список, щоб з'явилася галочка ✅
+            self.load_instances_to_list()
             
-            # Запускаємо гру!
-            try:
-                self.runner.launch_instance(
-                    self._launch_data["instance"],
-                    self._launch_data["nickname"],
-                    self._launch_data["ram"],
-                    self._launch_data["java_path"]
-                )
-            except Exception as e:
-                QMessageBox.critical(self, "Помилка запуску", str(e))
+            if updated_instance_data:
+                try:
+                    self.runner.launch_instance(
+                        updated_instance_data,
+                        self._launch_data["nickname"],
+                        self._launch_data["ram"]
+                    )
+                except Exception as e:
+                    QMessageBox.critical(self, "Помилка запуску", str(e))
         else:
             QMessageBox.critical(self, "Помилка завантаження", message)

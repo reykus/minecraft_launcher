@@ -25,36 +25,41 @@ QListWidget::item:selected {
     background-color: #313244;
 }
 QPushButton {
-    background-color: #313244;
-    border: none;
-    border-radius: 6px;
+    background-color: transparent;
+    border: 2px solid #585b70;
+    border-radius: 8px;
     padding: 10px 20px;
     font-size: 14px;
     font-weight: bold;
     color: #cdd6f4;
 }
 QPushButton:hover {
+    background-color: #313244;
+    border-color: #cdd6f4;
+}
+QPushButton:pressed {
     background-color: #45475a;
 }
 QPushButton:disabled {
-    background-color: #181825;
+    background-color: transparent;
     color: #585b70;
+    border-color: #313244;
 }
 QPushButton#playButton {
-    background-color: #a6e3a1;
-    color: #1e1e2e;
-    font-size: 16px;
-    padding: 15px;
+    color: #a6e3a1;
+    border-color: #a6e3a1;
 }
 QPushButton#playButton:hover {
-    background-color: #94e2d5;
-}
-QPushButton#deleteButton {
-    background-color: #f38ba8;
+    background-color: #a6e3a1;
     color: #1e1e2e;
 }
+QPushButton#deleteButton {
+    color: #f38ba8;
+    border-color: #f38ba8;
+}
 QPushButton#deleteButton:hover {
-    background-color: #eba0ac;
+    background-color: #f38ba8;
+    color: #1e1e2e;
 }
 QLineEdit {
     background-color: #313244;
@@ -119,24 +124,23 @@ QComboBox::down-arrow {
     border-top: 6px solid #cdd6f4;
     margin-right: 10px;
 }
-/* --- ВИПРАВЛЕННЯ ДЛЯ ВИПАДАЮЧОГО СПИСКУ --- */
 QComboBox QAbstractItemView {
-    background-color: #313244; /* Темний фон списку */
+    background-color: #313244;
     border: 2px solid #45475a;
-    selection-background-color: #45475a; /* Фон вибраного елемента */
-    outline: none; /* Прибираємо пунктирну рамку */
+    selection-background-color: #45475a;
+    outline: none;
 }
 QComboBox QAbstractItemView::item {
-    color: #cdd6f4; /* Колір тексту всіх елементів */
+    color: #cdd6f4;
     padding: 6px;
     min-height: 25px;
 }
 QComboBox QAbstractItemView::item:hover {
-    background-color: #45475a; /* Фон при наведенні миші */
-    color: #89b4fa; /* Світлий синій текст при наведенні */
+    background-color: #45475a;
+    color: #89b4fa;
 }
 QComboBox QAbstractItemView::item:selected {
-    background-color: #45475a; 
+    background-color: #45475a;
     color: #89b4fa;
 }
 QRadioButton {
@@ -155,5 +159,4 @@ QRadioButton::indicator:checked {
     background-color: #89b4fa;
     border-color: #89b4fa;
 }
-
 """

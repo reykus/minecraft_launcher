@@ -1,8 +1,9 @@
 import os
 import json
 import shutil
+from utils.settings import DATA_DIR
 
-INSTANCES_DIR = os.path.join(os.getcwd(), "data", "instances")
+INSTANCES_DIR = os.path.join(DATA_DIR, "instances")
 
 class InstanceManager:
     def __init__(self):

@@ -6,8 +6,9 @@ import requests
 import zipfile
 import tarfile
 import stat
+from utils.settings import DATA_DIR
 
-JAVA_DIR = os.path.join(os.getcwd(), "data", "java")
+JAVA_DIR = os.path.join(DATA_DIR, "java")
 
 class JavaManager:
     # Мапінг версій Minecraft до потрібної версії Java

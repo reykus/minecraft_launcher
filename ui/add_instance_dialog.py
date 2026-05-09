@@ -12,9 +12,9 @@ class AddInstanceDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Створити новий інстанс")
         self.setFixedSize(450, 300)
-        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint) # Прибираємо знак питання
+        self.setWindowFlags(self.windowFlags() & ~Qt.WindowContextHelpButtonHint)
         
-        self.selected_data = None # Тут зберігатиметься результат
+        self.selected_data = None
 
         self.init_ui()
         self.load_versions()
@@ -44,7 +44,7 @@ class AddInstanceDialog(QDialog):
         self.forge_radio = QRadioButton("Forge")
         self.fabric_radio = QRadioButton("Fabric")
         
-        self.vanilla_radio.setChecked(True) # За замовчуванням Vanilla
+        self.vanilla_radio.setChecked(True)
         
         self.loader_group.addButton(self.vanilla_radio, 0)
         self.loader_group.addButton(self.forge_radio, 1)
@@ -63,13 +63,12 @@ class AddInstanceDialog(QDialog):
         self.cancel_btn.clicked.connect(self.reject)
         
         self.create_btn = QPushButton("✨ Створити")
-        self.create_btn.setObjectName("playButton") # Використовуємо стиль зеленої кнопки
+        self.create_btn.setObjectName("playButton")
         self.create_btn.clicked.connect(self.create_instance)
 
         btn_layout.addWidget(self.cancel_btn)
         btn_layout.addWidget(self.create_btn)
 
-        # Збираємо все
         layout.addLayout(form_layout)
         layout.addWidget(loader_label)
         layout.addLayout(radio_layout)
@@ -77,15 +76,22 @@ class AddInstanceDialog(QDialog):
         layout.addLayout(btn_layout)
 
     def load_versions(self):
-        """Завантажує список версій у фоновому режимі (або в основному потоці, бо це швидко)"""
-        # Оскільки це просто запит JSON, він виконується миттєво
         versions = MinecraftRunner.get_vanilla_versions()
         self.version_combo.clear()
         if versions:
-            self.version_combo.addItems(versions)
+            for ver in versions:
+                # Перевіряємо, чи завантажена версія
+                is_installed = MinecraftRunner.is_version_installed(ver)
+                display_text = f"{ver} ✅" if is_installed else ver
+                
+                # Додаємо елемент: відображений текст (з галочкою) і дані (чиста версія)
+                self.version_combo.addItem(display_text, ver)
+                
             self.version_combo.setEnabled(True)
-            # Встановлюємо 1.20.4 за замовчуванням, якщо є
-            index = self.version_combo.findText("1.20.4")
+            
+            # Встановлюємо 1.20.4 за замовчуванням
+            # Шукаємо по даних (чистий текст), а не по відображеному тексту
+            index = self.version_combo.findData("1.20.4")
             if index != -1:
                 self.version_combo.setCurrentIndex(index)
         else:
@@ -97,18 +103,19 @@ class AddInstanceDialog(QDialog):
             QMessageBox.warning(self, "Помилка", "Введіть назву інстансу!")
             return
 
-        version = self.version_combo.currentText()
+        # Отримуємо чисту версію з даних елемента, а не з відображеного тексту
+        version = self.version_combo.currentData()
+        if not version:
+            version = self.version_combo.currentText().replace(" ✅", "")
         
-        # Визначаємо вибраний лоадер
         checked_id = self.loader_group.checkedId()
         loader_types = {0: "Vanilla", 1: "Forge", 2: "Fabric"}
         loader_type = loader_types.get(checked_id, "Vanilla")
 
-        # Зберігаємо результат
         self.selected_data = {
             "name": name,
             "version": version,
             "loader_type": loader_type
         }
         
-        self.accept() # Закриваємо діалог з результатом
+        self.accept()

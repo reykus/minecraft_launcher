@@ -1,12 +1,31 @@
 import os
+import sys
 import json
 
-DATA_DIR = os.path.join(os.getcwd(), "data")
+def get_app_data_dir():
+    """Повертає стандартну директорію для даних додатку залежно від ОС"""
+    app_name = "ModernMCLauncher"
+    
+    if sys.platform == 'win32':
+        # Windows: C:\Users\Користувач\AppData\Roaming\ModernMCLauncher
+        base = os.getenv('APPDATA')
+    elif sys.platform == 'darwin':
+        # macOS: ~/Library/Application Support/ModernMCLauncher
+        base = os.path.expanduser('~/Library/Application Support')
+    else:
+        # Linux: ~/.local/share/ModernMCLauncher
+        base = os.getenv('XDG_DATA_HOME', os.path.expanduser('~/.local/share'))
+        
+    path = os.path.join(base, app_name)
+    os.makedirs(path, exist_ok=True)
+    return path
+
+# Тепер DATA_DIR вказує на стандартну папку ОС
+DATA_DIR = get_app_data_dir()
 CONFIG_PATH = os.path.join(DATA_DIR, "config.json")
 
 class ConfigManager:
     def __init__(self):
-        os.makedirs(DATA_DIR, exist_ok=True)
         self.config = self.load_config()
 
     def load_config(self):
@@ -14,7 +33,7 @@ class ConfigManager:
             return {
                 "nickname": "Player",
                 "ram_mb": 2048,
-                "java_path": "" # Поки пусто, додамо в фазі 2
+                "java_path": ""
             }
         with open(CONFIG_PATH, "r", encoding="utf-8") as f:
             return json.load(f)
