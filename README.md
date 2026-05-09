@@ -27,8 +27,8 @@
 
 1. Клонуйте репозиторій:
    ```bash
-   git clone https://github.com/ВАШ_ПРОФІЛЬ/ВАШ_РЕПОЗИТОРІЙ.git
-   cd ВАШ_РЕПОЗИТОРІЙ
+   git clone https://github.com/reykus/minecraft_launcher
+   cd minecraft_launcher
    ```
 
 2. Створіть та активуйте віртуальне середовище (рекомендовано):
