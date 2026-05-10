@@ -12,6 +12,7 @@ from ui.styles import DARK_STYLE
 from ui.instance_card import InstanceCard
 from ui.workers import InstallWorker
 from ui.add_instance_dialog import AddInstanceDialog
+from ui.crash_dialog import CrashReportDialog
 
 from utils.settings import ConfigManager
 from core.instance_manager import InstanceManager
@@ -221,13 +222,17 @@ class MainWindow(QMainWindow):
         ram = self.ram_slider.value()
 
         self.set_ui_busy(True)
-        self.status_label.setText("Підготовка до встановлення/запуску...")
+        self.status_label.setText("Перевірка файлів...")
 
-        # Запускаємо потік, який САМ завантажить Java та Гру
+        # Зберігаємо тимчасові дані для запуску всередині об'єкта інстансу
+        self.current_instance["_nickname"] = nickname
+        self.current_instance["_ram"] = ram
+
         self.worker = InstallWorker(self.current_instance)
         self.worker.progress_signal.connect(self.progress_bar.setValue)
         self.worker.status_signal.connect(self.status_label.setText)
         self.worker.finished_signal.connect(self.on_install_finished)
+        
         
         self._launch_data = {
             "nickname": nickname,
@@ -238,20 +243,22 @@ class MainWindow(QMainWindow):
 
     def on_install_finished(self, success, message, updated_instance_data):
         self.set_ui_busy(False)
-        self.status_label.setText(message)
 
         if success:
-            # Оновлюємо список, щоб з'явилася галочка ✅
+            self.status_label.setText(message)
             self.load_instances_to_list()
-            
             if updated_instance_data:
-                try:
-                    self.runner.launch_instance(
-                        updated_instance_data,
-                        self._launch_data["nickname"],
-                        self._launch_data["ram"]
-                    )
-                except Exception as e:
-                    QMessageBox.critical(self, "Помилка запуску", str(e))
+                updated_instance_data.pop("_nickname", None)
+                updated_instance_data.pop("_ram", None)
         else:
-            QMessageBox.critical(self, "Помилка завантаження", message)
+            # ВАЖЛИВО: В головне вікно пишемо лише коротке повідомлення, щоб воно не розтягувалося!
+            self.status_label.setText("❌ Сталася помилка запуску Minecraft")
+            
+            # Витягуємо шлях до інстансу
+            instance_path = ""
+            if updated_instance_data and "instance_path" in updated_instance_data:
+                instance_path = updated_instance_data["instance_path"]
+                
+            # Відкриваємо окреме вікно з повним логом
+            dialog = CrashReportDialog(message, instance_path, self)
+            dialog.exec()

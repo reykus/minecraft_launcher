@@ -159,4 +159,17 @@ QRadioButton::indicator:checked {
     background-color: #89b4fa;
     border-color: #89b4fa;
 }
+QTextEdit {
+    background-color: #11111b;
+    color: #f38ba8;
+    border: 2px solid #313244;
+    border-radius: 6px;
+    padding: 10px;
+    font-family: 'Consolas', 'Courier New', monospace;
+    font-size: 13px;
+}
+QTextEdit:selected {
+    background-color: #45475a;
+    color: #cdd6f4;
+}
 """
