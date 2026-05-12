@@ -21,6 +21,19 @@ class InstallWorker(QThread):
             loader_type = self.instance_data["loader_type"]
             launch_version_id = self.instance_data.get("launch_version_id")
 
+            # ==========================================
+            # ВИПРАВЛЕННЯ: Спочатку шукаємо Java!
+            # Без неї Forge/Fabric не зможуть встановитися.
+            # ==========================================
+            self.status_signal.emit("Пошук відповідної версії Java...")
+            required_java = JavaManager.get_required_java_version(version)
+            java_path = JavaManager.get_java_executable(required_java)
+
+            if not java_path:
+                self.finished_signal.emit(False, "Не вдалося знайти або завантажити Java! Перевірте інтернет-з'єднання.", {})
+                return
+
+            # Тепер перевіряємо, чи гра вже встановлена
             is_installed = launch_version_id and MinecraftRunner.is_version_installed(launch_version_id)
 
             if is_installed:
@@ -33,18 +46,17 @@ class InstallWorker(QThread):
                     "setProgress": self._set_progress,
                     "setMax": self._set_max
                 }
-                success = MinecraftRunner.install_instance(self.instance_data, callback_dict=callbacks)
+                
+                # ВАЖЛИВО: Передаємо знайдений шлях до Java у функцію встановлення!
+                success = MinecraftRunner.install_instance(
+                    self.instance_data, 
+                    callback_dict=callbacks,
+                    java_path=java_path # <--- Цей параметр вирішує WinError 2
+                )
+                
                 if not success:
-                    self.finished_signal.emit(False, "Помилка встановлення.", {})
+                    self.finished_signal.emit(False, "Помилка встановлення. Можливо, відсутня Java або проблеми з інтернетом.", {})
                     return
-
-            self.status_signal.emit("Пошук відповідної версії Java...")
-            required_java = JavaManager.get_required_java_version(version)
-            java_path = JavaManager.get_java_executable(required_java)
-
-            if not java_path:
-                self.finished_signal.emit(False, "Не вдалося знайти або завантажити Java!", {})
-                return
 
             self.status_signal.emit("Запуск Minecraft...")
             self.progress_signal.emit(100)
@@ -60,20 +72,22 @@ class InstallWorker(QThread):
                 self.finished_signal.emit(False, "Не вдалося запустити процес гри.", {})
                 return
 
+            # Відстеження крашу на старті (чекаємо 12 секунд)
             self.msleep(12000) 
 
             exit_code = process.poll()
             
             if exit_code is not None:
+                # ГРА ВПАЛА!
                 error_log = f"Гра завершилася з кодом помилки {exit_code} протягом перших 12 секунд.\n\n"
                 instance_path = self.instance_data["path"]
                 
                 crash_info = self._get_crash_log(instance_path, loader_type)
                 
-                # Передаємо шлях до інстансу у словнику, щоб діалог міг відкрити папку
                 error_payload = {"instance_path": instance_path}
                 self.finished_signal.emit(False, error_log + crash_info, error_payload)
             else:
+                # Гра працює!
                 from core.instance_manager import InstanceManager
                 updated_instances = InstanceManager().get_all_instances()
                 updated_data = next((i for i in updated_instances if i["name"] == self.instance_data["name"]), self.instance_data)
@@ -113,13 +127,12 @@ class InstallWorker(QThread):
                             last_index = idx
                     
                     if last_index != -1:
-                        # Беремо 2000 символів перед помилкою для повного контексту
                         start = max(0, last_index - 2000)
                         return "=== ЛОГ FORGE (fml-client-latest.log) ===\n" + content[start:start+25000]
                     else:
                         return "=== ЛОГ FORGE (fml-client-latest.log) ===\n" + content[-15000:]
 
-        # 3. Загальний лог latest.log
+        # 3. Загальний лог latest.log (або для Fabric)
         latest_log_path = os.path.join(logs_dir, "latest.log")
         if os.path.exists(latest_log_path):
             with open(latest_log_path, 'r', encoding='utf-8', errors='ignore') as file:

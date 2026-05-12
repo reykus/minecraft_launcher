@@ -149,21 +149,27 @@ class MinecraftRunner:
             "uuid": offline_uuid,
             "token": "",
             "jvmPath": java_path if java_path else minecraft_launcher_lib.utils.get_java_executable(),
-            "ram": ram_mb,
+            # ВАЖЛИВО: Не додаємо сюди "ram" або "jvmArguments", 
+            # щоб не зламати стандартні аргументи Java 17/21
             "gameDirectory": instance_path, 
         }
 
         try:
+            # 1. Генеруємо команду з усіма стандартними та необхідними аргументами
             minecraft_command = minecraft_launcher_lib.command.get_minecraft_command(
                 launch_version_id, BASE_MINECRAFT_DIR, options
             )
+            
+            # 2. ВРУЧНУ ВСТАВЛЯЄМО АРГУМЕНТИ ПАМ'ЯТІ
+            # Команда виглядає так: ["шлях/до/java", "-арг1", "-арг2", "MainClass", "..."]
+            # Ми вставляємо -Xmx та -Xms одразу після шляху до Java (на індекс 1 та 2)
+            minecraft_command.insert(1, f"-Xmx{ram_mb}M")
+            minecraft_command.insert(2, "-Xms1G") # Мінімальна пам'ять 1 ГБ
             
             kwargs = {}
             if os.name == 'nt':
                 kwargs['creationflags'] = subprocess.CREATE_NO_WINDOW
             
-            # ВАЖЛИВО: Не перехоплюємо stdout/stderr! javaw.exe все одно туди не пише.
-            # Це дозволить грі коректно створювати вікно та лог-файли.
             process = subprocess.Popen(minecraft_command, cwd=instance_path, **kwargs)
             return process
         except Exception as e:
